@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto, UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from '../users/users.service';
@@ -8,15 +8,19 @@ import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/Register.dto';
 import { JwtPayload } from '../common/decorators/current-user.decorator';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import * as crypto from 'crypto';
+import { MailService } from '../service/mail.service';
 
 @Injectable()
 export class AuthService {
+    private readonly logger = new Logger(AuthService.name);
     private readonly saltRounds = 10;
 
     constructor(
         private usersService: UsersService,
         private jwtService: JwtService,
-        private configService: ConfigService
+        private configService: ConfigService,
+        private mailService: MailService
     ) { }
 
     async login(dto: LoginDto): Promise<AuthResponseDto> {
@@ -120,5 +124,29 @@ export class AuthService {
             email: user.email,
             avatar: user.avatar ?? undefined,
         };
+    }
+
+    async forgotPassword(email: string): Promise<void> {
+        this.logger.log(`Initiating password reset for email: ${email}`);
+        const user = await this.usersService.findByEmail(email);
+
+        if (!user) {
+            this.logger.log(`User not found for email: ${email}`);
+            return;
+        }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date();
+        expires.setHours(expires.getHours() + 1);
+        this.logger.log(`Generated reset token for ${email}, updating database`);
+        try {
+            await this.usersService.updateResetToken(user.id, token, expires);
+            this.logger.log(`Database updated. Sending password reset email`);
+            await this.mailService.sendPasswordResetEmail(user.email, token);
+            this.logger.log(`Password reset email sent successfully`);
+        } catch (error) {
+            this.logger.error(`Error during password reset process:`, error);
+            throw error;
+        }
     }
 }

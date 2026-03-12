@@ -14,6 +14,7 @@ import { RegisterDto } from './dto/Register.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 
 
 
@@ -24,6 +25,7 @@ export class AuthController {
         private readonly authService: AuthService
     ) { }
 
+    //// res do login do usuario 
     @Public()
     @Post('login')
     @HttpCode(HttpStatus.OK)
@@ -41,6 +43,7 @@ export class AuthController {
         return this.authService.login(dto);
     }
 
+    // resgistra o usuario 
     @Public()
     @Post('register')
     @Throttle({ default: { limit: 3, ttl: 60000 } })
@@ -55,6 +58,7 @@ export class AuthController {
         return this.authService.register(dto);
     }
 
+    //aqui vai verifica se o token do usuario e valido
     @Post('refresh')
     @HttpCode(HttpStatus.OK)
     @ApiBearerAuth('JWT')
@@ -67,6 +71,7 @@ export class AuthController {
         return this.authService.refresh(payload);
     }
 
+    //lista usuario logado
     @Get('me')
     @ApiBearerAuth('JWT')
     @ApiOperation({ summary: 'Obter dados do usuário logado' })
@@ -75,6 +80,7 @@ export class AuthController {
         return this.authService.getProfile(payload);
     }
 
+    //  editar usuario 
     @Put('me')
     @ApiBearerAuth('JWT')
     @ApiOperation({
@@ -91,6 +97,18 @@ export class AuthController {
         @Body() dto: UpdateProfileDto
     ){
        return this.authService.updateProfile(payLoad, dto);
+    }
+
+    //aqui vai recupera a senha do usuario
+    @Public()
+    @Post('forgot-password')
+    @HttpCode(HttpStatus.OK)
+    @Throttle({ default: { limit: 3, ttl: 60000 } })
+    @ApiOperation({ summary: 'Solicitar redefinição de senha' })
+    @ApiResponse({status: 200, description: 'Email enviado (ou ignorado silenciosamente)'})
+    @ApiResponse({ status: 429, description: 'Muitas tentativas. Tente novamente em alguns minutos.'})
+    async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void>{
+      return this.authService.forgotPassword(dto.email);
     }
 
 }

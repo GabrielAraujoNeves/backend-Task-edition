@@ -99,6 +99,16 @@ export class UsersService {
         })
     }
 
+    async updateResetToken( userId: string, token: string, expires: Date, ): Promise<void> {
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                resetPasswordToken: token,
+                resetPasswordExpires: expires,
+            },
+        });
+    }
+
     async updateProfile(userId: string, data: UpdateProfileData): Promise<UserForAuth> {
         const current = await this.findById(userId);
         if (!current) {
@@ -125,6 +135,8 @@ export class UsersService {
         if (Object.keys(updateData).length === 0) {
             return current
         }
+
+
 
         const user = await this.prisma.user.update({
             where: { id: userId },
