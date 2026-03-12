@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto, UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from '../users/users.service';
@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/Register.dto';
 import { JwtPayload } from '../common/decorators/current-user.decorator';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AuthService {
@@ -88,6 +89,31 @@ export class AuthService {
         if (!user) {
             throw new UnauthorizedException('Usuário não encontrado');
         }
+        return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar ?? undefined,
+        };
+    }
+
+    async updateProfile(payLoad: JwtPayload, dto: UpdateProfileDto): Promise<UserResponseDto> {
+        const userId = payLoad.sub;
+        let passwordHash: string | undefined;
+        if (dto.password !== undefined && dto.password.trim() !== '') {
+            if (!dto.confirmPassword || dto.confirmPassword.trim() === '') {
+                throw new BadRequestException('confirme a senha');
+            }
+            if (dto.password !== dto.confirmPassword) {
+                throw new BadRequestException('As senha não coincidem');
+            }
+            passwordHash = await bcrypt.hash(dto.password, this.saltRounds);
+        }
+        const user = await this.usersService.updateProfile(userId, {
+            ...(dto.name !== undefined && { name: dto.name }),
+            ...(dto.email !== undefined && { email: dto.email }),
+            ...(passwordHash !== undefined && { passwordHash }),
+        });
         return {
             id: user.id,
             name: user.name,
